@@ -1,0 +1,324 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --primary: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.35);
+  --surface: rgba(15, 23, 42, 0.75);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(96, 165, 250, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background-color: #07090e;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.6) 0px, transparent 80%),
+    url('bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
+  color: #f8fafc;
+}
+
+/* Contenedor central con centrado balanceado */
+main {
+  width: 100%;
+  max-width: 24rem;
+  margin: auto 0;
+}
+
+header {
+  width: 100%;
+  max-width: 24rem;
+  margin-bottom: 1rem;
+}
+
+/* Glassmorphism real con bisel de luz */
+.glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%), var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px -10px rgba(37, 99, 235, 0.15);
+  border-radius: 1.5rem;
+}
+
+/* Inputs con profundidad */
+input, select {
+  background: rgba(11, 15, 25, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) inset;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input:focus, select:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 
+    0 0 0 3px var(--primary-glow),
+    0 2px 4px rgba(0, 0, 0, 0.4) inset !important;
+  outline: none;
+}
+
+input::placeholder {
+  color: #64748b;
+}
+
+/* Botón principal estilo Fintech */
+button[onclick="ejecutarLogin()"], #btnCobrar {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5), 0 0 15px rgba(37, 99, 235, 0.3) !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#btnCobrar {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Microinteracciones táctiles */
+.btn-action {
+  transition: transform 0.1s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.btn-action:active {
+  transform: scale(0.97);
+  filter: brightness(0.9);
+}
+
+/* Insignias e indicadores */
+#rolBadge {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 0.05em;
+}
+
+/* Modos de ancho de pantalla según la vista activa */
+.layout-dashboard {
+  max-width: 72rem !important; /* 6xl */
+  margin-top: 1rem !important;
+}
+
+/* Badges estilo tabla */
+.badge-role-vendedor {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-role-admin {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.badge-role-superadmin {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+/* Tabla con hover elegante */
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* --- OVERRIDE TOTAL DARK MODE SWEETALERT2 --- */
+.swal2-popup {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 30px rgba(59, 130, 246, 0.15) !important;
+  border-radius: 1.5rem !important;
+  color: #f8fafc !important;
+}
+
+.swal2-title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.swal2-html-container {
+  color: #94a3b8 !important;
+}
+
+/* Inputs y Selects dentro del Modal */
+.swal2-popup input,
+.swal2-popup select {
+  background: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-radius: 0.75rem !important;
+}
+
+.swal2-popup input:focus,
+.swal2-popup select:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Botón Guardar / Confirmar */
+.swal2-confirm {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+  border-radius: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.7rem 1.5rem !important;
+}
+
+/* Botón Cancelar */
+.swal2-cancel {
+  background: #334155 !important;
+  color: #cbd5e1 !important;
+  border-radius: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.7rem 1.5rem !important;
+}
+
+.swal2-cancel:hover {
+  background: #475569 !important;
+}
+
+/* Fondo difuminado de la pantalla completa detrás del modal */
+.swal2-backdrop-show {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(3, 7, 18, 0.7) !important;
+}
+
+/* Tarjetas Interactivas de Chips y Usuarios */
+.item-card {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+.avatar-chip {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.05));
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.avatar-user {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.05));
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* --- ANIMACIÓN RADAR NFC PULSANTE --- */
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  70% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 16px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.radar-anim {
+  animation: radar-pulse 2.2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Tarjeta Bíblica Dinámica */
+.biblia-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(251, 191, 36, 0.1);
+}
+
+/* Botones de denominación rápida Admin */
+.btn-quick-cash {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+
+.btn-quick-cash:hover {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-quick-cash:active {
+  transform: scale(0.97);
+}
+
+/* Píldoras de cantidad vendedor */
+.pill-qty {
+  transition: all 0.15s ease;
+}
+.pill-qty.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);
+}
+
+/* --- MODO PRESENTACIÓN PANTALLA GIGANTE --- */
+#tvPresentationModal {
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.kpi-giant-card {
+  background: radial-gradient(circle at top left, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15);
+}
+
+/* Badge de stock en tiempo real */
+.badge-stock-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-stock-low {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-stock-out {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}

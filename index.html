@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GENESARET POS - Sistema NFC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js para gráficas en tiempo real -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-4">
+
+  <!-- HEADER EMPRESARIAL EXPANDIDO -->
+  <header id="mainHeader" class="w-full max-w-md flex items-center justify-between py-4 px-2 mb-4 transition-all duration-300">
+    <div class="flex items-center gap-3">
+      <img src="logo.png" alt="Logo" class="h-9 w-auto object-contain" onerror="this.style.display='none'" />
+      <div>
+        <h1 class="text-base font-bold tracking-wide text-white leading-tight">GENESARET POS</h1>
+        <div class="flex items-center gap-2">
+          <span id="rolBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Desconectado</span>
+          <span id="userGreeting" class="text-xs text-slate-400 hidden sm:inline"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Navegación desktop SuperAdmin -->
+    <nav id="superadminNav" class="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-xl border border-slate-800">
+      <button onclick="switchTabSuperAdmin('dashboard')" id="tabNavDashboard" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">Dashboard</button>
+      <button onclick="switchTabSuperAdmin('chips')" id="tabNavChips" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Pulseras NFC</button>
+      <button onclick="switchTabSuperAdmin('articulos')" id="tabNavArticulos" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Catálogo</button>
+      <button onclick="switchTabSuperAdmin('usuarios')" id="tabNavUsuarios" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Cuentas</button>
+      <button onclick="switchTabSuperAdmin('reportes')" id="tabNavReportes" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Reportes</button>
+      <button onclick="abrirModoPresentacionTV()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white ml-2 shadow-lg shadow-indigo-600/30 btn-action">
+        🖥️ Modo TV
+      </button>
+    </nav>
+
+    <button id="btnLogout" onclick="cerrarSesion()" class="hidden text-xs bg-red-950/40 border border-red-800/40 text-red-300 hover:bg-red-900/50 px-3 py-1.5 rounded-lg btn-action">
+      Salir
+    </button>
+  </header>
+
+  <main id="mainContainer" class="w-full max-w-md transition-all duration-300 space-y-4">
+
+    <!-- 1. VISTA LOGIN -->
+    <section id="viewLogin" class="glass-card rounded-2xl p-6 shadow-2xl space-y-4">
+      <h2 class="text-xl font-bold text-center text-white">Iniciar Sesión</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Correo Electrónico</label>
+          <input type="email" id="loginEmail" class="w-full rounded-xl px-4 py-3" placeholder="admin@genesaret.com" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Contraseña</label>
+          <input type="password" id="loginPassword" class="w-full rounded-xl px-4 py-3" placeholder="••••••••" />
+        </div>
+        <button onclick="ejecutarLogin()" class="w-full py-3.5 rounded-xl text-white font-bold btn-action">
+          Entrar al Sistema
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. VISTA VENDEDOR -->
+    <section id="viewVendedor" class="hidden space-y-4">
+      
+      <!-- Pestañas del Vendedor -->
+      <div class="flex gap-2">
+        <button onclick="switchTabVendedor('cobro')" id="tabBtnVendCobro" class="flex-1 py-2.5 rounded-xl font-bold text-xs bg-blue-600 text-white shadow-lg shadow-blue-600/25 btn-action">
+          💳 Cobro en Caja
+        </button>
+        <button onclick="switchTabVendedor('historial')" id="tabBtnVendHistorial" class="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-900/80 text-slate-400 border border-slate-800 btn-action">
+          📋 Mi Historial (<span id="historialConteoTab">0</span>)
+        </button>
+      </div>
+
+      <!-- TAB 1: COBRO -->
+      <div id="tabContentVendCobro" class="space-y-4">
+        
+        <!-- ESTADO NFC CON RADAR VISUAL -->
+        <div id="vendRadarBox" class="glass-card rounded-2xl p-5 border border-slate-800 transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div id="vendRadarIcon" class="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-2xl radar-anim">
+                📡
+              </div>
+              <div>
+                <span id="vendChipStatusBadge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800/40">Listo para escanear</span>
+                <h3 class="text-base font-bold text-white mt-1" id="vendNombre">Esperando pulsera...</h3>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 block font-semibold">SALDO</span>
+              <span id="vendSaldo" class="text-xl font-black text-emerald-400">$0.00</span>
+            </div>
+          </div>
+          <div id="vendChipId" class="text-[10px] font-mono text-slate-500 mt-2 truncate">UID: Sin leer</div>
+        </div>
+
+        <!-- TARJETA DE COBRO & ATAJOS -->
+        <div id="vendPanelCobro" class="glass-card rounded-2xl p-5 space-y-4">
+          <!-- Puesto de Venta y Stock -->
+          <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Puesto de Venta</span>
+                <span id="badgeStockVendedor" class="text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-ok">Stock: ∞</span>
+              </div>
+              <h3 class="font-bold text-white text-base leading-tight" id="artActivoNombre">Cargando producto...</h3>
+            </div>
+            <button onclick="abrirModalArticulosExtra()" class="text-xs text-blue-400 font-medium hover:underline bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-800/30">
+              ⇄ Cambiar
+            </button>
+          </div>
+
+          <!-- Precio e Incrementador Principal -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex justify-between items-center">
+            <div>
+              <span class="text-[10px] text-slate-400 font-semibold block uppercase">Precio Unitario</span>
+              <div id="artActivoPrecio" class="text-lg font-bold text-white">$0.00</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="ajustarPiezas(-1)" class="w-11 h-11 rounded-xl bg-slate-800 text-white font-bold text-xl flex items-center justify-center btn-action border border-slate-700">-</button>
+              <span id="lblPiezas" class="text-2xl font-black text-white w-8 text-center">1</span>
+              <button onclick="ajustarPiezas(1)" class="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold text-xl flex items-center justify-center btn-action shadow-lg shadow-blue-600/30">+</button>
+            </div>
+          </div>
+
+          <!-- PÍLDORAS TÁCTILES DE CANTIDAD RÁPIDA -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Atajos de Cantidad:</span>
+            <div class="grid grid-cols-5 gap-2">
+              <button onclick="fijarPiezas(1)" class="pill-qty active py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">1</button>
+              <button onclick="fijarPiezas(2)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">2</button>
+              <button onclick="fijarPiezas(3)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">3</button>
+              <button onclick="fijarPiezas(5)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">5</button>
+              <button onclick="fijarPiezas(10)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">10</button>
+            </div>
+          </div>
+
+          <!-- Total y Botón de Cobro -->
+          <div class="pt-2 border-t border-slate-800/80 flex justify-between items-center">
+            <div>
+              <span class="text-xs text-slate-400 block font-medium">Total de la orden:</span>
+              <span id="lblMontoTotal" class="text-3xl font-black text-amber-400">$0.00</span>
+            </div>
+            <button id="btnCobrar" onclick="procesarCobro()" class="px-7 py-4 rounded-xl text-white font-bold btn-action text-base tracking-wide shadow-lg shadow-emerald-600/20">
+              Cobrar Ahora
+            </button>
+          </div>
+        </div>
+
+        <!-- RESUMEN INFERIOR DEL TURNO -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-900/70 border border-slate-800 p-3.5 rounded-2xl text-center">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Órdenes Atendidas</span>
+            <span id="resumenTurnoOrdenes" class="text-xl font-black text-white">0</span>
+          </div>
+          <div class="bg-slate-900/70 border border-slate-800 p-3.5 rounded-2xl text-center">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Venta en Turno</span>
+            <span id="resumenTurnoDinero" class="text-xl font-black text-emerald-400">$0.00</span>
+          </div>
+        </div>
+
+        <!-- TARJETA BÍBLICA EN PANTALLA MÓVIL -->
+        <div class="biblia-card rounded-2xl p-4 text-center space-y-1">
+          <div class="text-[11px] font-serif italic text-amber-200/90" id="bibliaTextoVendedor">"Todo lo que hagan, háganlo de corazón, como para el Señor..."</div>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-amber-400/70" id="bibliaCitaVendedor">Colosenses 3:23</span>
+        </div>
+
+      </div>
+
+      <!-- TAB 2: HISTORIAL -->
+      <div id="tabContentVendHistorial" class="hidden glass-card rounded-2xl p-5 space-y-3">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <h3 class="font-bold text-white text-base">Ventas de este Turno</h3>
+          <span id="historialTotalAcumulado" class="text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-800/40">$0.00 cobrado</span>
+        </div>
+        <div id="historialLista" class="max-h-96 overflow-y-auto space-y-2.5 text-xs pr-1">
+          <div class="text-slate-500 italic text-center py-8">Sin ventas registradas en esta sesión</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. VISTA ADMIN (TAQUILLA / RECARGA) -->
+    <section id="viewAdmin" class="hidden space-y-4">
+      
+      <!-- ESTADO DE LA PULSERA -->
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500 space-y-2">
+        <div class="flex justify-between items-start">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TAQUILLA ACTIVA</span>
+          </div>
+          <span id="admChipId" class="text-xs font-mono bg-amber-950/80 text-amber-300 px-2.5 py-0.5 rounded border border-amber-800/40">Sin pulsera</span>
+        </div>
+        <div class="flex justify-between items-end">
+          <div>
+            <h3 class="text-xl font-bold text-white" id="admChipNombre">Esperando pulsera...</h3>
+            <span class="text-xs text-slate-400" id="admSubEstado">Acerca la pulsera al lector para operar</span>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] text-slate-400 font-semibold block uppercase">Saldo Actual</span>
+            <span id="admChipSaldo" class="text-2xl font-black text-emerald-400">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTADO A: PULSERA NO REGISTRADA (SOLO BOTÓN DE ALTA) -->
+      <div id="admBoxNoRegistrado" class="glass-card rounded-2xl p-6 text-center space-y-4 border border-amber-500/30">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl">
+          🏷️
+        </div>
+        <div>
+          <h4 class="text-white font-bold text-base">Pulsera Sin Registrar</h4>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            Esta pulsera aún no tiene titular. Asigna un nombre y su primer saldo para habilitar las recargas.
+          </p>
+        </div>
+        <button onclick="abrirModalRegistroNFC()" class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm btn-action shadow-lg shadow-amber-500/20">
+          📝 Dar de Alta Titular y Saldo
+        </button>
+      </div>
+
+      <!-- ESTADO B: PULSERA REGISTRADA (RECARGA RÁPIDA HABILITADA) -->
+      <div id="admBoxRegistrado" class="hidden space-y-4">
+        <!-- TECLADO DE RECARGA EXPRÉS 1-TAP -->
+        <div class="glass-card rounded-2xl p-5 space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              ⚡ Recarga Exprés en Efectivo
+            </span>
+            <span class="text-[10px] text-emerald-400 font-mono">1-TAP REC</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5">
+            <button onclick="recargarMontoRapido(50)" class="btn-quick-cash py-3.5 rounded-xl font-black text-white text-base flex flex-col items-center">
+              <span>+$50</span>
+              <span class="text-[9px] text-slate-400 font-normal">MXN</span>
+            </button>
+            <button onclick="recargarMontoRapido(100)" class="btn-quick-cash py-3.5 rounded-xl font-black text-emerald-400 text-base flex flex-col items-center">
+              <span>+$100</span>
+              <span class="text-[9px] text-slate-400 font-normal">Popular</span>
+            </button>
+            <button onclick="recargarMontoRapido(200)" class="btn-quick-cash py-3.5 rounded-xl font-black text-white text-base flex flex-col items-center">
+              <span>+$200</span>
+              <span class="text-[9px] text-slate-400 font-normal">MXN</span>
+            </button>
+            <button onclick="recargarMontoRapido(300)" class="btn-quick-cash py-3.5 rounded-xl font-black text-white text-base flex flex-col items-center">
+              <span>+$300</span>
+              <span class="text-[9px] text-slate-400 font-normal">MXN</span>
+            </button>
+            <button onclick="recargarMontoRapido(500)" class="btn-quick-cash py-3.5 rounded-xl font-black text-amber-400 text-base flex flex-col items-center">
+              <span>+$500</span>
+              <span class="text-[9px] text-slate-400 font-normal">Frecuente</span>
+            </button>
+            <button onclick="abrirModalAjusteSaldo()" class="btn-quick-cash py-3.5 rounded-xl font-bold text-blue-400 text-xs flex flex-col items-center justify-center border-blue-500/30">
+              <span>Otro / ±</span>
+              <span class="text-[9px] text-slate-400 font-normal">Personalizado</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ACCIONES SECUNDARIAS CUANDO YA ESTÁ VINCULADA -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="abrirModalRegistroNFC()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 py-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 btn-action">
+            <span>✏️ Modificar Nombre</span>
+          </button>
+          <button onclick="consultarChipActual()" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 py-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 btn-action">
+            <span>🔍 Info y Saldo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ARQUEO EN CAJA Y ÚLTIMOS 3 TICKETS -->
+      <div class="glass-card rounded-2xl p-4 space-y-3">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <span class="text-xs text-slate-400 font-semibold">Total Cobrado en esta Taquilla:</span>
+          <span id="admTotalCajaEfectivo" class="text-base font-black text-emerald-400">$0.00</span>
+        </div>
+        <div class="space-y-1.5">
+          <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Últimas operaciones en esta taquilla</span>
+          <div id="admUltimasOperaciones" class="space-y-1.5 text-xs">
+            <div class="text-slate-500 text-center py-2 italic text-[11px]">Sin operaciones recientes</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TARJETA BÍBLICA EN PANTALLA ADMIN -->
+      <div class="biblia-card rounded-2xl p-4 text-center space-y-1">
+        <div class="text-[11px] font-serif italic text-amber-200/90" id="bibliaTextoAdmin">"El que es fiel en lo muy poco, también en lo más es fiel..."</div>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-amber-400/70" id="bibliaCitaAdmin">Lucas 16:10</span>
+      </div>
+
+    </section>
+
+    <!-- 4. VISTA SUPER ADMIN (DASHBOARD FINANCIERO COMPLETO) -->
+    <section id="viewSuperAdmin" class="hidden space-y-6">
+      
+      <!-- Submenú responsivo móvil -->
+      <div class="flex md:hidden overflow-x-auto gap-2 pb-1">
+        <button onclick="switchTabSuperAdmin('dashboard')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-blue-600 text-white" id="tabBtnDashboard">Dashboard</button>
+        <button onclick="switchTabSuperAdmin('chips')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnChips">Pulseras</button>
+        <button onclick="switchTabSuperAdmin('articulos')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnArticulos">Catálogo</button>
+        <button onclick="switchTabSuperAdmin('usuarios')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnUsuarios">Cuentas</button>
+        <button onclick="switchTabSuperAdmin('reportes')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnReportes">Reportes</button>
+      </div>
+
+      <!-- TAB 1: DASHBOARD EN TIEMPO REAL -->
+      <div id="tabContentDashboard" class="space-y-6">
+        <!-- 4 Tarjetas de Métricas Ejecutivas -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500">
+            <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Recargas Brutas (Caja)</span>
+            <div id="kpiTotalRecargado" class="text-2xl font-black text-white mt-1">$0.00</div>
+            <span class="text-[11px] text-emerald-400 mt-1 block">Total captado en taquillas</span>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border-l-4 border-l-blue-500">
+            <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Consumo Total (Ventas)</span>
+            <div id="kpiTotalGastado" class="text-2xl font-black text-white mt-1">$0.00</div>
+            <span class="text-[11px] text-blue-400 mt-1 block">Gasto real en puestos</span>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border-l-4 border-l-amber-500">
+            <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Saldo Flotante Activo</span>
+            <div id="kpiSaldoFlotante" class="text-2xl font-black text-amber-400 mt-1">$0.00</div>
+            <span class="text-[11px] text-slate-400 mt-1 block">En posesión de asistentes</span>
+          </div>
+
+          <div class="glass-card p-5 rounded-2xl border-l-4 border-l-purple-500">
+            <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Operaciones en Vivo</span>
+            <div id="kpiConteoTransacciones" class="text-2xl font-black text-purple-300 mt-1">0</div>
+            <span class="text-[11px] text-purple-400 mt-1 block">Cargos y recargas totales</span>
+          </div>
+        </div>
+
+        <!-- Gráficas y Feed en Vivo -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Gráfica de Ventas por Producto -->
+          <div class="lg:col-span-2 glass-card p-6 rounded-2xl space-y-4">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-white text-sm">🔥 Top Artículos Más Vendidos</h3>
+              <span class="text-xs text-slate-400 font-mono">En tiempo real</span>
+            </div>
+            <div class="relative h-64 w-full">
+              <canvas id="chartTopProductos"></canvas>
+            </div>
+          </div>
+
+          <!-- Feed de Transacciones en Directo -->
+          <div class="glass-card p-6 rounded-2xl space-y-4 flex flex-col">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-white text-sm">⚡ Actividad Reciente</h3>
+              <span class="flex h-2 w-2 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            </div>
+            <div id="feedTransacciones" class="flex-1 overflow-y-auto max-h-64 space-y-2 text-xs pr-1">
+              <div class="text-slate-500 text-center py-8 italic">Escuchando ventas...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: BASE DE DATOS DE PULSERAS NFC (MODO TARJETAS) -->
+      <div id="tabContentChips" class="hidden space-y-4">
+        <div class="glass-card rounded-2xl p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div>
+            <span class="text-base font-bold text-white flex items-center gap-2">🎟️ Padrón de Pulseras NFC</span>
+            <p class="text-xs text-slate-400" id="totalChipsBadge">Cargando datos...</p>
+          </div>
+          <input type="text" id="buscadorChips" oninput="filtrarTablaChips()" placeholder="🔍 Buscar por UID o Titular..." class="bg-slate-900/90 border border-slate-700 text-xs px-4 py-2.5 rounded-xl text-white w-full sm:w-72 focus:outline-none focus:border-blue-500 transition" />
+        </div>
+
+        <!-- Grid de Tarjetas de Chips -->
+        <div id="gridChipsCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Render dinámico de tarjetas -->
+        </div>
+      </div>
+
+      <!-- TAB 3: CATÁLOGO DE ARTÍCULOS (CON EDICIÓN Y ACCIONES) -->
+      <div id="tabContentArticulos" class="hidden glass-card rounded-2xl p-6 space-y-4">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+          <div>
+            <span class="text-base font-bold text-white">🏷️ Catálogo de Artículos</span>
+            <p class="text-xs text-slate-400">Precios y productos activos para venta en taquillas</p>
+          </div>
+          <button onclick="abrirModalCrearArticulo()" class="text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl btn-action shadow-lg shadow-blue-600/20">
+            + Nuevo Artículo
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800/80 uppercase tracking-wider font-semibold">
+                <th class="py-3 px-3">Artículo</th>
+                <th class="py-3 px-3">Precio Unitario</th>
+                <th class="py-3 px-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="listaArticulosTabla" class="divide-y divide-slate-800/50 text-slate-300"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: USUARIOS / CUENTAS (MODO TARJETAS DE PERSONAL) -->
+      <div id="tabContentUsuarios" class="hidden space-y-4">
+        <div class="glass-card rounded-2xl p-5 flex justify-between items-center">
+          <div>
+            <span class="text-base font-bold text-white flex items-center gap-2">👥 Personal y Cuentas</span>
+            <p class="text-xs text-slate-400" id="totalUsuariosBadge">Cargando operadores...</p>
+          </div>
+          <button onclick="abrirModalCrearUsuario()" class="text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-xl btn-action shadow-lg shadow-amber-500/20">
+            + Nuevo Usuario
+          </button>
+        </div>
+
+        <!-- Grid de Tarjetas de Usuarios -->
+        <div id="gridUsuariosCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Render dinámico de tarjetas -->
+        </div>
+      </div>
+
+      <!-- TAB 5: REPORTES FINANCIEROS Y AUDITORÍA -->
+      <div id="tabContentReportes" class="hidden glass-card rounded-2xl p-6 space-y-6">
+        <div>
+          <h3 class="font-bold text-white text-base">Informes Financieros y Cierre de Caja</h3>
+          <p class="text-xs text-slate-400">Descarga consolidada para balance general, arqueo y conciliación bancaria.</p>
+        </div>
+
+        <!-- Matriz de Reportes de Caja -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-white">Arqueo Completo</span>
+            <p class="text-[11px] text-slate-400">Todas las transacciones detalladas con fecha, operador, chip y saldos.</p>
+            <button onclick="descargarReporteGeneralExcel()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg text-xs btn-action">
+              📥 Excel Transacciones
+            </button>
+          </div>
+
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-white">Auditoría de Pulseras</span>
+            <p class="text-[11px] text-slate-400">Padrón de pulseras con saldo remanente no canjeado para corte final.</p>
+            <button onclick="descargarReporteChipsExcel()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-xs btn-action">
+              📥 Excel Saldo Flotante
+            </button>
+          </div>
+
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-white">Ventas por Operador</span>
+            <p class="text-[11px] text-slate-400">Total recaudado por cada vendedor y unidades vendidas de su artículo.</p>
+            <button onclick="descargarReporteVendedoresExcel()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg text-xs btn-action">
+              📥 Excel por Puesto
+            </button>
+          </div>
+        </div>
+
+        <!-- ZONA DE PELIGRO: REINICIO DE PRUEBAS -->
+        <div class="mt-8 pt-6 border-t border-red-900/40 bg-red-950/20 rounded-2xl p-5 border border-red-900/30 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 class="text-sm font-bold text-red-300 flex items-center gap-2">⚠️ Reinicio de Pruebas / Puesta a Cero</h4>
+              <p class="text-xs text-slate-400">Elimina todas las transacciones registradas y pulseras de prueba para iniciar el evento en blanco.</p>
+            </div>
+            <button onclick="ejecutarReseteoDePruebas()" class="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2.5 px-4 rounded-xl text-xs btn-action shadow-lg shadow-red-900/40 whitespace-nowrap">
+              🗑️ Purgar Datos de Prueba
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+ 
+  <!-- MODAL DE PANTALLA GIGANTE PARA PROYECCIÓN / TV -->
+  <div id="tvPresentationModal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl p-8 flex flex-col justify-between">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="Logo" class="h-14 w-auto object-contain" onerror="this.style.display='none'" />
+        <div>
+          <h1 class="text-2xl font-black tracking-widest text-white">GENESARET POS • EN DIRECTO</h1>
+          <p class="text-xs text-slate-400">MONITOREO FINANCIERO Y CONTROL DE EVENTO</p>
+        </div>
+      </div>
+      <button onclick="cerrarModoPresentacionTV()" class="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2 rounded-xl text-xs font-bold border border-slate-700">
+        ✕ Salir de Pantalla Completa
+      </button>
+    </div>
+
+    <div class="grid grid-cols-3 gap-8 my-auto">
+      <div class="kpi-giant-card p-8 rounded-3xl text-center space-y-2 border-l-8 border-l-emerald-500">
+        <span class="text-sm font-bold uppercase tracking-wider text-slate-400">Recargas Brutas en Taquillas</span>
+        <div id="tvKpiRecargas" class="text-6xl font-black text-white">$0.00</div>
+        <span class="text-xs text-emerald-400 font-semibold">Total Efectivo Captado</span>
+      </div>
+
+      <div class="kpi-giant-card p-8 rounded-3xl text-center space-y-2 border-l-8 border-l-blue-500">
+        <span class="text-sm font-bold uppercase tracking-wider text-slate-400">Ventas Registradas en Puestos</span>
+        <div id="tvKpiVentas" class="text-6xl font-black text-blue-400">$0.00</div>
+        <span class="text-xs text-blue-300 font-semibold">Consumo Real del Evento</span>
+      </div>
+
+      <div class="kpi-giant-card p-8 rounded-3xl text-center space-y-2 border-l-8 border-l-amber-500">
+        <span class="text-sm font-bold uppercase tracking-wider text-slate-400">Saldo Activo en Pulseras</span>
+        <div id="tvKpiFlotante" class="text-6xl font-black text-amber-400">$0.00</div>
+        <span class="text-xs text-amber-300 font-semibold">Flotante por Consumir</span>
+      </div>
+    </div>
+
+    <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <span class="flex h-3 w-3 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <span class="text-xs font-bold text-white uppercase tracking-wider">Última operación:</span>
+        <span id="tvTickerTexto" class="text-xs text-slate-300 italic font-mono">Esperando transacciones...</span>
+      </div>
+      <div class="text-xs font-bold text-slate-400" id="tvRelojVivo">--:--:--</div>
+    </div>
+  </div>
+</body>
+</html>
