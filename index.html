@@ -300,13 +300,15 @@
     <!-- 4. VISTA SUPER ADMIN (DASHBOARD FINANCIERO COMPLETO) -->
     <section id="viewSuperAdmin" class="hidden space-y-6">
       
-      <!-- Submenú responsivo móvil -->
-      <div class="flex md:hidden overflow-x-auto gap-2 pb-1">
-        <button onclick="switchTabSuperAdmin('dashboard')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-blue-600 text-white" id="tabBtnDashboard">Dashboard</button>
-        <button onclick="switchTabSuperAdmin('chips')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnChips">Pulseras</button>
-        <button onclick="switchTabSuperAdmin('articulos')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnArticulos">Catálogo</button>
-        <button onclick="switchTabSuperAdmin('usuarios')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnUsuarios">Cuentas</button>
-        <button onclick="switchTabSuperAdmin('reportes')" class="flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400" id="tabBtnReportes">Reportes</button>
+     
+     <!-- Submenú responsivo móvil (Grid compacto sin scroll) -->
+      <div class="grid grid-cols-3 gap-1.5 md:hidden">
+        <button onclick="switchTabSuperAdmin('dashboard')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-blue-600 text-white text-center truncate shadow-sm transition" id="tabBtnDashboard">📊 Panel</button>
+        <button onclick="switchTabSuperAdmin('chips')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition" id="tabBtnChips">🎟️ Pulseras</button>
+        <button onclick="switchTabSuperAdmin('articulos')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition" id="tabBtnArticulos">🏷️ Catálogo</button>
+        <button onclick="switchTabSuperAdmin('usuarios')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition" id="tabBtnUsuarios">👥 Cuentas</button>
+        <button onclick="switchTabSuperAdmin('reportes')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition" id="tabBtnReportes">📈 Reportes</button>
+        <button onclick="abrirModoPresentacionTV()" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-indigo-600 text-white text-center truncate shadow-sm shadow-indigo-600/30">🖥️ Modo TV</button>
       </div>
 
       <!-- TAB 1: DASHBOARD EN TIEMPO REAL -->

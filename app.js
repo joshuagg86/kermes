@@ -142,15 +142,22 @@ function ajustarLayoutAncho(esDashboard) {
     header.classList.add('max-w-6xl');
     container.classList.remove('max-w-md');
     container.classList.add('layout-dashboard');
-    nav.classList.remove('hidden');
-    nav.classList.add('md:flex');
+    
+    // Mantenerlo oculto en móvil y visible ÚNICAMENTE a partir de pantallas medianas (tablets/laptops)
+    if (nav) {
+      nav.classList.remove('flex');
+      nav.classList.add('hidden', 'md:flex');
+    }
   } else {
     header.classList.add('max-w-md');
     header.classList.remove('max-w-6xl');
     container.classList.add('max-w-md');
     container.classList.remove('layout-dashboard');
-    nav.classList.add('hidden');
-    nav.classList.remove('md:flex');
+    
+    if (nav) {
+      nav.classList.add('hidden');
+      nav.classList.remove('md:flex');
+    }
   }
 }
 
@@ -787,9 +794,10 @@ function switchTabSuperAdmin(tab) {
     if (el) el.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
   });
 
+  // Clases inactivas del grid móvil
   ['tabBtnDashboard', 'tabBtnChips', 'tabBtnArticulos', 'tabBtnUsuarios', 'tabBtnReportes'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.className = 'flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-slate-800 text-slate-400';
+    if (el) el.className = 'py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition';
   });
 
   const activeContent = document.getElementById(`tabContent${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
@@ -798,7 +806,9 @@ function switchTabSuperAdmin(tab) {
 
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeNav) activeNav.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30';
-  if (activeBtnMobile) activeBtnMobile.className = 'flex-shrink-0 px-3 py-2 rounded-lg font-bold text-xs bg-blue-600 text-white';
+  
+  // Clase activa del botón seleccionado en móvil
+  if (activeBtnMobile) activeBtnMobile.className = 'py-2.5 px-1 rounded-xl font-bold text-[11px] bg-blue-600 text-white text-center truncate shadow-sm transition';
 }
 
 function iniciarMonitoreoTiempoRealSuperAdmin() {
