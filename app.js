@@ -285,29 +285,37 @@ function actualizarBadgeStock(stock) {
 async function refrescarDatosChipVendedor(chipId) {
   const radarIcon = document.getElementById('vendRadarIcon');
   const statusBadge = document.getElementById('vendChipStatusBadge');
+  const panelCobro = document.getElementById('vendPanelCobro');
 
   const doc = await db.collection('chips').doc(chipId).get();
-  if (doc.exists) {
+  if (doc.exists && doc.data().nombre && doc.data().nombre.trim() !== '') {
     currentChipData = doc.data();
-    document.getElementById('vendNombre').textContent = currentChipData.nombre || 'Sin titular registrado';
+    document.getElementById('vendNombre').textContent = currentChipData.nombre;
     document.getElementById('vendSaldo').textContent = `$${(currentChipData.saldoActual || 0).toFixed(2)}`;
     document.getElementById('vendChipId').textContent = `UID: ${chipId}`;
 
+    // Pulsera conectada
     radarIcon.textContent = '✅';
     radarIcon.className = 'w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-2xl';
     statusBadge.textContent = 'Pulsera Conectada';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40';
+
+    // MOSTRAR PANEL DE COBRO
+    if (panelCobro) panelCobro.classList.remove('hidden');
   } else {
     currentChipData = null;
-    document.getElementById('vendNombre').textContent = 'Chip no registrado';
+    document.getElementById('vendNombre').textContent = 'Pulsera sin registrar';
     document.getElementById('vendSaldo').textContent = '$0.00';
     document.getElementById('vendChipId').textContent = `UID: ${chipId}`;
     
     radarIcon.textContent = '⚠️';
     radarIcon.className = 'w-12 h-12 rounded-2xl bg-amber-600/20 border border-amber-500/40 flex items-center justify-center text-2xl';
-    statusBadge.textContent = 'Sin alta en taquilla';
+    statusBadge.textContent = 'Requiere alta en taquilla';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800/40';
-    Swal.fire('Chip sin registro', 'Este chip aún no ha sido dado de alta por un Administrador.', 'info');
+
+    // OCULTAR PANEL DE COBRO
+    if (panelCobro) panelCobro.classList.add('hidden');
+    Swal.fire('Pulsera no registrada', 'Esta pulsera aún no cuenta con titular o saldo inicial registrado.', 'info');
   }
 }
 
@@ -370,6 +378,31 @@ async function procesarCobro() {
   if (!articuloActivo) return Swal.fire('Error', 'No hay artículo asignado.', 'warning');
 
   const totalCobro = articuloActivo.precio * piezasACobrar;
+  const titularActual = currentChipData?.nombre || 'Titular';
+  const saldoActualVisible = currentChipData?.saldoActual || 0;
+
+  // DIÁLOGO PREVIO DE CONFIRMACIÓN
+  const { isConfirmed } = await Swal.fire({
+    title: '¿Confirmar cobro?',
+    html: `
+      <div class="text-left bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-2 text-xs">
+        <p class="text-slate-300">Cliente: <b class="text-white">${titularActual}</b></p>
+        <p class="text-slate-300">Orden: <b class="text-white">${piezasACobrar}x ${articuloActivo.nombre}</b></p>
+        <p class="text-slate-300">Saldo disponible: <b class="text-emerald-400">$${saldoActualVisible.toFixed(2)}</b></p>
+        <div class="pt-2 border-t border-slate-800 flex justify-between items-center text-sm">
+          <span class="text-slate-400 font-bold uppercase">Total a debitar:</span>
+          <span class="text-amber-400 font-black text-xl">$${totalCobro.toFixed(2)}</span>
+        </div>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, cobrar',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (!isConfirmed) return;
+
   const chipRef = db.collection('chips').doc(currentChipId);
   const artRef = db.collection('articulos').doc(articuloActivo.id);
 
@@ -391,7 +424,6 @@ async function procesarCobro() {
         throw new Error(`Saldo insuficiente. Disponible: $${saldoActual.toFixed(2)}`);
       }
 
-      // Validar y decrementar stock si el artículo tiene inventario definido
       if (artDoc.exists && artDoc.data().stock !== undefined && artDoc.data().stock !== null) {
         const stockActual = artDoc.data().stock;
         if (stockActual < piezasACobrar) {
@@ -432,7 +464,9 @@ async function procesarCobro() {
     actualizarBadgeStock(articuloActivo.stock);
     registrarHistorialLocal(articuloActivo.nombre, piezasACobrar, totalCobro);
 
-    // Modal con opción de comprobante de WhatsApp
+    // Reiniciar selector de piezas a 1 para la siguiente orden
+    fijarPiezas(1);
+
     const mensajeWA = encodeURIComponent(
       `✨ *Genesaret POS - Comprobante de Consumo* ✨\n` +
       `👤 Titular: ${titular}\n` +
