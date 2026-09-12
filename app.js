@@ -30,15 +30,12 @@ let catalogoArticulos = [];
 let historialSesion = [];
 let listaChipsCache = [];
 
-// Estados del Admin
-let totalEfectivoCajaAdmin = 0;
-let ultimasOperacionesAdmin = [];
-
-// Listeners en tiempo real para SuperAdmin y Admin
+// Listeners en tiempo real
 let unsubscribeTransacciones = null;
 let unsubscribeChips = null;
 let chartProductosRef = null;
 let unsubscribeChipAdmin = null;
+let unsubscribeCajaAdmin = null;
 
 // ==========================================
 // MÓDULO BÍBLICO (ROTACIÓN CADA 15 MINUTOS)
@@ -188,6 +185,7 @@ function destruirListenersTiempoReal() {
   if (unsubscribeChips) { unsubscribeChips(); unsubscribeChips = null; }
   if (chartProductosRef) { chartProductosRef.destroy(); chartProductosRef = null; }
   if (unsubscribeChipAdmin) { unsubscribeChipAdmin(); unsubscribeChipAdmin = null; }
+  if (unsubscribeCajaAdmin) { unsubscribeCajaAdmin(); unsubscribeCajaAdmin = null; }
 }
 
 // --- ENRUTADOR DINÁMICO ---
@@ -208,6 +206,7 @@ async function inicializarFlujoPorRol() {
 
     if (currentUserData.rol === 'admin') {
       mostrarVista('viewAdmin');
+      iniciarMonitoreoCajaAdmin(); // <--- Activamos auditoría en vivo para la Taquilla
       if (currentChipId) {
         document.getElementById('admChipId').textContent = currentChipId;
         await refrescarDatosChipAdmin(currentChipId);
@@ -517,7 +516,6 @@ async function procesarCobro() {
       `¡Muchas gracias por tu apoyo!`
     );
 
-    // Modal ágil con autocierre para evitar cuellos de botella en la fila
     await Swal.fire({
       icon: 'success',
       title: '¡Cobro Exitoso!',
@@ -627,6 +625,59 @@ function registrarHistorialLocal(producto, cant, monto) {
 // ==========================================
 // SECCIÓN: ADMIN (TAQUILLA / SALDO)
 // ==========================================
+function iniciarMonitoreoCajaAdmin() {
+  if (!currentUserData || !currentUserData.uid) return;
+  if (unsubscribeCajaAdmin) {
+    unsubscribeCajaAdmin();
+    unsubscribeCajaAdmin = null;
+  }
+
+  // Escucha en tiempo real de todas las recargas registradas por este cajero
+  unsubscribeCajaAdmin = db.collection('transacciones')
+    .where('vendedorUid', '==', currentUserData.uid)
+    .where('tipo', '==', 'recarga')
+    .onSnapshot(snap => {
+      let totalCaja = 0;
+      let ops = [];
+
+      snap.forEach(doc => {
+        const d = doc.data();
+        totalCaja += (d.monto || 0);
+
+        ops.push({
+          titular: d.nombreTitular || 'Titular',
+          monto: d.monto || 0,
+          hora: d.timestamp 
+            ? d.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            : 'Reciente',
+          timestampMillis: d.timestamp ? d.timestamp.toMillis() : 0
+        });
+      });
+
+      ops.sort((a, b) => b.timestampMillis - a.timestampMillis);
+
+      const lblTotal = document.getElementById('admTotalCajaEfectivo');
+      if (lblTotal) lblTotal.textContent = `$${totalCaja.toFixed(2)}`;
+
+      const box = document.getElementById('admUltimasOperaciones');
+      if (box) {
+        if (ops.length === 0) {
+          box.innerHTML = '<div class="text-slate-500 text-center py-2 italic text-[11px]">Sin operaciones recientes</div>';
+        } else {
+          box.innerHTML = ops.slice(0, 3).map(op => `
+            <div class="bg-slate-900/90 p-2 rounded-xl border border-slate-800 flex justify-between items-center">
+              <div>
+                <span class="font-bold text-white text-xs block">${op.titular}</span>
+                <span class="text-[10px] text-slate-500 font-mono">${op.hora}</span>
+              </div>
+              <span class="font-black text-emerald-400 text-xs">+$${op.monto.toFixed(2)}</span>
+            </div>
+          `).join('');
+        }
+      }
+    }, err => console.error('Error al escuchar caja admin:', err));
+}
+
 function resetearEstadoTaquillaAdmin() {
   if (unsubscribeChipAdmin) {
     unsubscribeChipAdmin();
@@ -738,18 +789,6 @@ async function recargarMontoRapido(monto) {
       });
     });
 
-    document.getElementById('admChipSaldo').textContent = `$${saldoResultante.toFixed(2)}`;
-
-    totalEfectivoCajaAdmin += monto;
-    document.getElementById('admTotalCajaEfectivo').textContent = `$${totalEfectivoCajaAdmin.toFixed(2)}`;
-
-    ultimasOperacionesAdmin.unshift({
-      titular: titularDoc,
-      monto: monto,
-      hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-
-    actualizarTiraOperacionesAdmin();
     reproducirSonidoExito();
 
     await Swal.fire({
@@ -767,19 +806,6 @@ async function recargarMontoRapido(monto) {
     reproducirSonidoRechazo();
     Swal.fire('Error al recargar', err.message, 'error');
   }
-}
-
-function actualizarTiraOperacionesAdmin() {
-  const box = document.getElementById('admUltimasOperaciones');
-  box.innerHTML = ultimasOperacionesAdmin.slice(0, 3).map(op => `
-    <div class="bg-slate-900/90 p-2 rounded-xl border border-slate-800 flex justify-between items-center">
-      <div>
-        <span class="font-bold text-white text-xs block">${op.titular}</span>
-        <span class="text-[10px] text-slate-500 font-mono">${op.hora}</span>
-      </div>
-      <span class="font-black text-emerald-400 text-xs">+$${op.monto.toFixed(2)}</span>
-    </div>
-  `).join('');
 }
 
 async function abrirModalRegistroNFC() {
@@ -829,17 +855,6 @@ async function abrirModalRegistroNFC() {
           });
         }
       });
-
-      if (formValues.saldo > 0) {
-        totalEfectivoCajaAdmin += formValues.saldo;
-        document.getElementById('admTotalCajaEfectivo').textContent = `$${totalEfectivoCajaAdmin.toFixed(2)}`;
-        ultimasOperacionesAdmin.unshift({
-          titular: formValues.nombre,
-          monto: formValues.saldo,
-          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-        actualizarTiraOperacionesAdmin();
-      }
 
       await Swal.fire({
         icon: 'success',
@@ -916,11 +931,6 @@ async function abrirModalAjusteSaldo() {
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
       });
-
-      if (formValues.tipo === 'recarga') {
-        totalEfectivoCajaAdmin += formValues.monto;
-        document.getElementById('admTotalCajaEfectivo').textContent = `$${totalEfectivoCajaAdmin.toFixed(2)}`;
-      }
 
       await Swal.fire({
         icon: 'success',
