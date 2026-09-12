@@ -143,7 +143,6 @@ function ajustarLayoutAncho(esDashboard) {
     container.classList.remove('max-w-md');
     container.classList.add('layout-dashboard');
     
-    // Mantenerlo oculto en móvil y visible ÚNICAMENTE a partir de pantallas medianas (tablets/laptops)
     if (nav) {
       nav.classList.remove('flex');
       nav.classList.add('hidden', 'md:flex');
@@ -187,6 +186,7 @@ function destruirListenersTiempoReal() {
   if (unsubscribeTransacciones) { unsubscribeTransacciones(); unsubscribeTransacciones = null; }
   if (unsubscribeChips) { unsubscribeChips(); unsubscribeChips = null; }
   if (chartProductosRef) { chartProductosRef.destroy(); chartProductosRef = null; }
+  if (unsubscribeChipAdmin) { unsubscribeChipAdmin(); unsubscribeChipAdmin = null; }
 }
 
 // --- ENRUTADOR DINÁMICO ---
@@ -216,6 +216,7 @@ async function inicializarFlujoPorRol() {
       switchTabVendedor('cobro');
       await cargarCatalogo();
       await cargarArticuloVendedor();
+      await cargarHistorialVendedorDesdeFirestore();
       if (currentChipId) {
         await refrescarDatosChipVendedor(currentChipId);
       }
@@ -256,7 +257,6 @@ async function cargarArticuloVendedor() {
     document.getElementById('artActivoNombre').textContent = articuloActivo.nombre;
     document.getElementById('artActivoPrecio').textContent = `$${articuloActivo.precio.toFixed(2)}`;
     
-    // Validar Stock
     actualizarBadgeStock(articuloActivo.stock);
     calcularTotalVenta();
   }
@@ -294,13 +294,11 @@ async function refrescarDatosChipVendedor(chipId) {
     document.getElementById('vendSaldo').textContent = `$${(currentChipData.saldoActual || 0).toFixed(2)}`;
     document.getElementById('vendChipId').textContent = `UID: ${chipId}`;
 
-    // Pulsera conectada
     radarIcon.textContent = '✅';
     radarIcon.className = 'w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-2xl';
     statusBadge.textContent = 'Pulsera Conectada';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40';
 
-    // MOSTRAR PANEL DE COBRO
     if (panelCobro) panelCobro.classList.remove('hidden');
   } else {
     currentChipData = null;
@@ -313,7 +311,6 @@ async function refrescarDatosChipVendedor(chipId) {
     statusBadge.textContent = 'Requiere alta en taquilla';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800/40';
 
-    // OCULTAR PANEL DE COBRO
     if (panelCobro) panelCobro.classList.add('hidden');
     Swal.fire('Pulsera no registrada', 'Esta pulsera aún no cuenta con titular o saldo inicial registrado.', 'info');
   }
@@ -381,7 +378,6 @@ async function procesarCobro() {
   const titularActual = currentChipData?.nombre || 'Titular';
   const saldoActualVisible = currentChipData?.saldoActual || 0;
 
-  // DIÁLOGO PREVIO DE CONFIRMACIÓN
   const { isConfirmed } = await Swal.fire({
     title: '¿Confirmar cobro?',
     html: `
@@ -464,7 +460,6 @@ async function procesarCobro() {
     actualizarBadgeStock(articuloActivo.stock);
     registrarHistorialLocal(articuloActivo.nombre, piezasACobrar, totalCobro);
 
-    // Reiniciar selector de piezas a 1 para la siguiente orden
     fijarPiezas(1);
 
     const mensajeWA = encodeURIComponent(
@@ -499,36 +494,84 @@ async function procesarCobro() {
   }
 }
 
-function registrarHistorialLocal(producto, cant, monto) {
-  historialSesion.unshift({ 
-    producto, 
-    cant, 
-    monto, 
-    hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
-  });
+// Cargar transacciones reales del vendedor desde Firestore
+async function cargarHistorialVendedorDesdeFirestore() {
+  if (!currentUserData || !currentUserData.uid) return;
 
+  try {
+    const snap = await db.collection('transacciones')
+      .where('vendedorUid', '==', currentUserData.uid)
+      .where('tipo', '==', 'cargo')
+      .get();
+
+    historialSesion = [];
+
+    snap.forEach(doc => {
+      const t = doc.data();
+      const horaStr = t.timestamp 
+        ? t.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
+        : 'Reciente';
+      
+      const detalle = t.articulos && t.articulos.length > 0
+        ? `${t.articulos[0].piezas}x ${t.articulos[0].nombre}`
+        : 'Consumo';
+
+      historialSesion.push({
+        producto: detalle,
+        monto: t.monto || 0,
+        hora: horaStr,
+        timestampMillis: t.timestamp ? t.timestamp.toMillis() : 0
+      });
+    });
+
+    historialSesion.sort((a, b) => b.timestampMillis - a.timestampMillis);
+    renderizarHistorialVendedorUI();
+  } catch (err) {
+    console.error('Error al recuperar historial del vendedor:', err);
+  }
+}
+
+function renderizarHistorialVendedorUI() {
   const lista = document.getElementById('historialLista');
   const badgeConteo = document.getElementById('historialConteoTab');
   const badgeTotal = document.getElementById('historialTotalAcumulado');
-
-  badgeConteo.textContent = historialSesion.length;
-  const totalCobrado = historialSesion.reduce((acc, cur) => acc + cur.monto, 0);
-  badgeTotal.textContent = `$${totalCobrado.toFixed(2)} cobrado`;
-
   const lblOrdenes = document.getElementById('resumenTurnoOrdenes');
   const lblDinero = document.getElementById('resumenTurnoDinero');
+
+  const totalCobrado = historialSesion.reduce((acc, cur) => acc + cur.monto, 0);
+
+  if (badgeConteo) badgeConteo.textContent = historialSesion.length;
+  if (badgeTotal) badgeTotal.textContent = `$${totalCobrado.toFixed(2)} cobrado`;
   if (lblOrdenes) lblOrdenes.textContent = historialSesion.length;
   if (lblDinero) lblDinero.textContent = `$${totalCobrado.toFixed(2)}`;
+
+  if (!lista) return;
+
+  if (historialSesion.length === 0) {
+    lista.innerHTML = '<div class="text-slate-500 italic text-center py-8">Sin ventas registradas en esta sesión</div>';
+    return;
+  }
 
   lista.innerHTML = historialSesion.map(item => `
     <div class="flex justify-between items-center bg-slate-900/80 p-3 rounded-xl border border-slate-800">
       <div>
-        <span class="font-bold text-white text-sm">${item.cant}x ${item.producto}</span>
+        <span class="font-bold text-white text-sm">${item.producto}</span>
         <span class="block text-[11px] text-slate-500 font-mono mt-0.5">${item.hora}</span>
       </div>
       <span class="font-extrabold text-amber-400 text-sm">-$${item.monto.toFixed(2)}</span>
     </div>
   `).join('');
+}
+
+function registrarHistorialLocal(producto, cant, monto) {
+  historialSesion.unshift({ 
+    producto: `${cant}x ${producto}`, 
+    monto: monto, 
+    hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    timestampMillis: Date.now()
+  });
+
+  renderizarHistorialVendedorUI();
 }
 
 // ==========================================
@@ -540,13 +583,11 @@ async function refrescarDatosChipAdmin(chipId) {
   const boxNoReg = document.getElementById('admBoxNoRegistrado');
   const boxReg = document.getElementById('admBoxRegistrado');
 
-  // Cancelar listener previo si existía para evitar fugas de memoria
   if (unsubscribeChipAdmin) {
     unsubscribeChipAdmin();
     unsubscribeChipAdmin = null;
   }
 
-  // Escucha en tiempo real instantánea
   unsubscribeChipAdmin = db.collection('chips').doc(chipId).onSnapshot(doc => {
     if (doc.exists && doc.data().nombre && doc.data().nombre.trim() !== '') {
       currentChipData = doc.data();
@@ -616,10 +657,8 @@ async function recargarMontoRapido(monto) {
       });
     });
 
-    // Actualización visual inmediata en pantalla (cero delay)
     document.getElementById('admChipSaldo').textContent = `$${saldoResultante.toFixed(2)}`;
 
-    // Registro de caja local
     totalEfectivoCajaAdmin += monto;
     document.getElementById('admTotalCajaEfectivo').textContent = `$${totalEfectivoCajaAdmin.toFixed(2)}`;
 
@@ -828,7 +867,6 @@ function switchTabSuperAdmin(tab) {
     if (el) el.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
   });
 
-  // Clases inactivas del grid móvil
   ['tabBtnDashboard', 'tabBtnChips', 'tabBtnArticulos', 'tabBtnUsuarios', 'tabBtnReportes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.className = 'py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition';
@@ -840,15 +878,12 @@ function switchTabSuperAdmin(tab) {
 
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeNav) activeNav.className = 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30';
-  
-  // Clase activa del botón seleccionado en móvil
   if (activeBtnMobile) activeBtnMobile.className = 'py-2.5 px-1 rounded-xl font-bold text-[11px] bg-blue-600 text-white text-center truncate shadow-sm transition';
 }
 
 function iniciarMonitoreoTiempoRealSuperAdmin() {
   destruirListenersTiempoReal();
 
-  // 1. Transacciones en tiempo real
   unsubscribeTransacciones = db.collection('transacciones').orderBy('timestamp', 'desc')
     .onSnapshot(snapshot => {
       let totalRecargas = 0;
@@ -877,12 +912,10 @@ function iniciarMonitoreoTiempoRealSuperAdmin() {
         }
       });
 
-      // Actualizar métricas del panel SuperAdmin
       document.getElementById('kpiTotalRecargado').textContent = `$${totalRecargas.toFixed(2)}`;
       document.getElementById('kpiTotalGastado').textContent = `$${totalVentas.toFixed(2)}`;
       document.getElementById('kpiConteoTransacciones').textContent = conteoOps;
 
-      // ACTUALIZAR MODO TV (PANTALLA GIGANTE)
       const tvRec = document.getElementById('tvKpiRecargas');
       const tvVen = document.getElementById('tvKpiVentas');
       const tvTick = document.getElementById('tvTickerTexto');
@@ -898,7 +931,6 @@ function iniciarMonitoreoTiempoRealSuperAdmin() {
       renderizarGraficaTopProductos(ventasPorArticulo);
     });
 
-  // 2. Chips en tiempo real
   unsubscribeChips = db.collection('chips').onSnapshot(snapshot => {
     listaChipsCache = [];
     let saldoFlotanteTotal = 0;
@@ -909,7 +941,6 @@ function iniciarMonitoreoTiempoRealSuperAdmin() {
       listaChipsCache.push(data);
     });
 
-    // Actualizar métrica en panel y en Modo TV
     document.getElementById('kpiSaldoFlotante').textContent = `$${saldoFlotanteTotal.toFixed(2)}`;
     const tvFlot = document.getElementById('tvKpiFlotante');
     if (tvFlot) tvFlot.textContent = `$${saldoFlotanteTotal.toFixed(2)}`;
@@ -1075,7 +1106,6 @@ function filtrarTablaChips() {
   renderizarTablaChips(filtrados);
 }
 
-// Auditoría local sin requerir índices compuestos
 async function auditarChip(chipId) {
   try {
     Swal.showLoading();
@@ -1487,13 +1517,11 @@ async function ejecutarReseteoDePruebas() {
     try {
       Swal.showLoading();
 
-      // 1. Purgar colección de transacciones
       const snapTrans = await db.collection('transacciones').get();
       const batch1 = db.batch();
       snapTrans.forEach(doc => batch1.delete(doc.ref));
       await batch1.commit();
 
-      // 2. Purgar colección de chips
       const snapChips = await db.collection('chips').get();
       const batch2 = db.batch();
       snapChips.forEach(doc => batch2.delete(doc.ref));
@@ -1547,4 +1575,3 @@ function reproducirSonidoRechazo() {
     if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
   } catch (e) { }
 }
-
