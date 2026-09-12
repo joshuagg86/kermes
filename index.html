@@ -105,56 +105,70 @@
           </div>
         </div>
 
-        <!-- TARJETA DE COBRO & ATAJOS -->
-        <div id="vendPanelCobro" class="hidden glass-card rounded-2xl p-5 space-y-4">
-          <!-- Puesto de Venta y Stock -->
+        <!-- TARJETA DEL PUESTO DE VENTA (SIEMPRE VISIBLE) -->
+        <div class="glass-card rounded-2xl p-5 space-y-4">
+          <!-- Identificador del Producto y Stock -->
           <div class="flex justify-between items-center pb-2 border-b border-slate-800">
             <div>
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Puesto de Venta</span>
                 <span id="badgeStockVendedor" class="text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-ok">Stock: ∞</span>
               </div>
-              <h3 class="font-bold text-white text-base leading-tight" id="artActivoNombre">Cargando producto...</h3>
+              <h3 class="font-bold text-white text-lg leading-tight" id="artActivoNombre">Cargando producto...</h3>
             </div>
             <button onclick="abrirModalArticulosExtra()" class="text-xs text-blue-400 font-medium hover:underline bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-800/30">
               ⇄ Cambiar
             </button>
           </div>
 
-          <!-- Precio e Incrementador Principal -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex justify-between items-center">
-            <div>
-              <span class="text-[10px] text-slate-400 font-semibold block uppercase">Precio Unitario</span>
-              <div id="artActivoPrecio" class="text-lg font-bold text-white">$0.00</div>
+          <!-- Precio Unitario de Referencia -->
+          <div class="flex justify-between items-center bg-slate-900/60 px-4 py-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-xs text-slate-400 font-semibold uppercase">Precio por porción:</span>
+            <span id="artActivoPrecio" class="text-base font-extrabold text-white">$0.00</span>
+          </div>
+
+          <!-- CONTROLES DE COBRO (OCULTOS HASTA DETECTAR CHIP) -->
+          <div id="vendControlesCobro" class="hidden space-y-4 pt-1 border-t border-slate-800/60">
+            <!-- Incrementador Principal -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex justify-between items-center">
+              <div>
+                <span class="text-[10px] text-slate-400 font-semibold block uppercase">Cantidad:</span>
+                <span class="text-xs text-slate-300">Piezas a cobrar</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <button onclick="ajustarPiezas(-1)" class="w-11 h-11 rounded-xl bg-slate-800 text-white font-bold text-xl flex items-center justify-center btn-action border border-slate-700">-</button>
+                <span id="lblPiezas" class="text-2xl font-black text-white w-8 text-center">1</span>
+                <button onclick="ajustarPiezas(1)" class="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold text-xl flex items-center justify-center btn-action shadow-lg shadow-blue-600/30">+</button>
+              </div>
             </div>
-            <div class="flex items-center gap-3">
-              <button onclick="ajustarPiezas(-1)" class="w-11 h-11 rounded-xl bg-slate-800 text-white font-bold text-xl flex items-center justify-center btn-action border border-slate-700">-</button>
-              <span id="lblPiezas" class="text-2xl font-black text-white w-8 text-center">1</span>
-              <button onclick="ajustarPiezas(1)" class="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold text-xl flex items-center justify-center btn-action shadow-lg shadow-blue-600/30">+</button>
+
+            <!-- Píldoras de cantidad rápida -->
+            <div class="space-y-1.5">
+              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Atajos de Cantidad:</span>
+              <div class="grid grid-cols-5 gap-2">
+                <button onclick="fijarPiezas(1)" class="pill-qty active py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">1</button>
+                <button onclick="fijarPiezas(2)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">2</button>
+                <button onclick="fijarPiezas(3)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">3</button>
+                <button onclick="fijarPiezas(5)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">5</button>
+                <button onclick="fijarPiezas(10)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">10</button>
+              </div>
+            </div>
+
+            <!-- Total y Botón de Cobro -->
+            <div class="pt-2 border-t border-slate-800/80 flex justify-between items-center">
+              <div>
+                <span class="text-xs text-slate-400 block font-medium">Total de la orden:</span>
+                <span id="lblMontoTotal" class="text-3xl font-black text-amber-400">$0.00</span>
+              </div>
+              <button id="btnCobrar" onclick="procesarCobro()" class="px-7 py-4 rounded-xl text-white font-bold btn-action text-base tracking-wide shadow-lg shadow-emerald-600/20">
+                Cobrar Ahora
+              </button>
             </div>
           </div>
 
-          <!-- PÍLDORAS TÁCTILES DE CANTIDAD RÁPIDA -->
-          <div class="space-y-1.5">
-            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Atajos de Cantidad:</span>
-            <div class="grid grid-cols-5 gap-2">
-              <button onclick="fijarPiezas(1)" class="pill-qty active py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">1</button>
-              <button onclick="fijarPiezas(2)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">2</button>
-              <button onclick="fijarPiezas(3)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">3</button>
-              <button onclick="fijarPiezas(5)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">5</button>
-              <button onclick="fijarPiezas(10)" class="pill-qty py-2 rounded-xl text-xs font-bold bg-slate-900 border border-slate-800 text-slate-300">10</button>
-            </div>
-          </div>
-
-          <!-- Total y Botón de Cobro -->
-          <div class="pt-2 border-t border-slate-800/80 flex justify-between items-center">
-            <div>
-              <span class="text-xs text-slate-400 block font-medium">Total de la orden:</span>
-              <span id="lblMontoTotal" class="text-3xl font-black text-amber-400">$0.00</span>
-            </div>
-            <button id="btnCobrar" onclick="procesarCobro()" class="px-7 py-4 rounded-xl text-white font-bold btn-action text-base tracking-wide shadow-lg shadow-emerald-600/20">
-              Cobrar Ahora
-            </button>
+          <!-- MENSAJE DE ESPERA DE PULSERA (CUANDO AÚN NO SE ESCANEA) -->
+          <div id="vendAvisoSinChip" class="bg-slate-900/40 border border-dashed border-slate-800 rounded-xl p-3.5 text-center">
+            <p class="text-xs text-slate-400">Acerca una pulsera NFC para ingresar la cantidad y cobrar.</p>
           </div>
         </div>
 
@@ -366,7 +380,7 @@
               <h3 class="font-bold text-white text-sm">⚡ Actividad Reciente</h3>
               <span class="flex h-2 w-2 relative">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
             </div>
             <div id="feedTransacciones" class="flex-1 overflow-y-auto max-h-64 space-y-2 text-xs pr-1">

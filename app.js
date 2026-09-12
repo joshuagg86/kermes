@@ -273,24 +273,25 @@ function actualizarBadgeStock(stock) {
   if (stock === undefined || stock === null) {
     badge.textContent = 'Stock: Ilimitado';
     badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-ok';
-    btnCobrar.disabled = false;
+    if (btnCobrar) btnCobrar.disabled = false;
   } else if (stock <= 0) {
     badge.textContent = 'AGOTADO';
     badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-out';
-    btnCobrar.disabled = true;
+    if (btnCobrar) btnCobrar.disabled = true;
   } else {
     badge.textContent = `Quedan: ${stock}`;
     badge.className = stock <= 10 
       ? 'text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-low animate-pulse'
       : 'text-[10px] font-bold px-2 py-0.5 rounded-full badge-stock-ok';
-    btnCobrar.disabled = false;
+    if (btnCobrar) btnCobrar.disabled = false;
   }
 }
 
 async function refrescarDatosChipVendedor(chipId) {
   const radarIcon = document.getElementById('vendRadarIcon');
   const statusBadge = document.getElementById('vendChipStatusBadge');
-  const panelCobro = document.getElementById('vendPanelCobro');
+  const controlesCobro = document.getElementById('vendControlesCobro');
+  const avisoSinChip = document.getElementById('vendAvisoSinChip');
   const btnSoltar = document.getElementById('btnDesconectarVendedor');
 
   const doc = await db.collection('chips').doc(chipId).get();
@@ -305,7 +306,8 @@ async function refrescarDatosChipVendedor(chipId) {
     statusBadge.textContent = 'Pulsera Conectada';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40';
 
-    if (panelCobro) panelCobro.classList.remove('hidden');
+    if (controlesCobro) controlesCobro.classList.remove('hidden');
+    if (avisoSinChip) avisoSinChip.classList.add('hidden');
     if (btnSoltar) btnSoltar.classList.remove('hidden');
   } else {
     currentChipData = null;
@@ -318,7 +320,8 @@ async function refrescarDatosChipVendedor(chipId) {
     statusBadge.textContent = 'Requiere alta en taquilla';
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800/40';
 
-    if (panelCobro) panelCobro.classList.add('hidden');
+    if (controlesCobro) controlesCobro.classList.add('hidden');
+    if (avisoSinChip) avisoSinChip.classList.remove('hidden');
     if (btnSoltar) btnSoltar.classList.remove('hidden');
     Swal.fire('Pulsera no registrada', 'Esta pulsera aún no cuenta con titular o saldo inicial registrado.', 'info');
   }
@@ -388,7 +391,8 @@ function resetearEstadoVentaVendedor() {
 
   const radarIcon = document.getElementById('vendRadarIcon');
   const statusBadge = document.getElementById('vendChipStatusBadge');
-  const panelCobro = document.getElementById('vendPanelCobro');
+  const controlesCobro = document.getElementById('vendControlesCobro');
+  const avisoSinChip = document.getElementById('vendAvisoSinChip');
   const btnSoltar = document.getElementById('btnDesconectarVendedor');
 
   if (radarIcon) {
@@ -408,8 +412,10 @@ function resetearEstadoVentaVendedor() {
   if (lblSaldo) lblSaldo.textContent = '$0.00';
   if (lblChip) lblChip.textContent = 'UID: Sin leer';
 
-  if (panelCobro) panelCobro.classList.add('hidden');
+  if (controlesCobro) controlesCobro.classList.add('hidden');
+  if (avisoSinChip) avisoSinChip.classList.remove('hidden');
   if (btnSoltar) btnSoltar.classList.add('hidden');
+
   fijarPiezas(1);
 }
 
@@ -755,7 +761,6 @@ async function recargarMontoRapido(monto) {
       showConfirmButton: false
     });
 
-    // Auto-reseteo para dejar la caja limpia al siguiente asistente
     resetearEstadoTaquillaAdmin();
 
   } catch (err) {
@@ -1318,7 +1323,7 @@ async function abrirModalCrearUsuario() {
         <option value="admin">Administrador (Taquilla)</option>
         <option value="superadmin">Super Admin</option>
       </select>
-      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl">${opcionesArt}</select>
+      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white">${opcionesArt}</select>
     `,
     showCancelButton: true,
     confirmButtonText: 'Crear Usuario',
