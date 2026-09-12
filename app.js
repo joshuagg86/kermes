@@ -211,6 +211,8 @@ async function inicializarFlujoPorRol() {
       if (currentChipId) {
         document.getElementById('admChipId').textContent = currentChipId;
         await refrescarDatosChipAdmin(currentChipId);
+      } else {
+        resetearEstadoTaquillaAdmin();
       }
     } else if (currentUserData.rol === 'vendedor') {
       mostrarVista('viewVendedor');
@@ -220,6 +222,8 @@ async function inicializarFlujoPorRol() {
       await cargarHistorialVendedorDesdeFirestore();
       if (currentChipId) {
         await refrescarDatosChipVendedor(currentChipId);
+      } else {
+        resetearEstadoVentaVendedor();
       }
     }
   }
@@ -287,6 +291,7 @@ async function refrescarDatosChipVendedor(chipId) {
   const radarIcon = document.getElementById('vendRadarIcon');
   const statusBadge = document.getElementById('vendChipStatusBadge');
   const panelCobro = document.getElementById('vendPanelCobro');
+  const btnSoltar = document.getElementById('btnDesconectarVendedor');
 
   const doc = await db.collection('chips').doc(chipId).get();
   if (doc.exists && doc.data().nombre && doc.data().nombre.trim() !== '') {
@@ -301,6 +306,7 @@ async function refrescarDatosChipVendedor(chipId) {
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40';
 
     if (panelCobro) panelCobro.classList.remove('hidden');
+    if (btnSoltar) btnSoltar.classList.remove('hidden');
   } else {
     currentChipData = null;
     document.getElementById('vendNombre').textContent = 'Pulsera sin registrar';
@@ -313,6 +319,7 @@ async function refrescarDatosChipVendedor(chipId) {
     statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800/40';
 
     if (panelCobro) panelCobro.classList.add('hidden');
+    if (btnSoltar) btnSoltar.classList.remove('hidden');
     Swal.fire('Pulsera no registrada', 'Esta pulsera aún no cuenta con titular o saldo inicial registrado.', 'info');
   }
 }
@@ -382,6 +389,7 @@ function resetearEstadoVentaVendedor() {
   const radarIcon = document.getElementById('vendRadarIcon');
   const statusBadge = document.getElementById('vendChipStatusBadge');
   const panelCobro = document.getElementById('vendPanelCobro');
+  const btnSoltar = document.getElementById('btnDesconectarVendedor');
 
   if (radarIcon) {
     radarIcon.textContent = '📡';
@@ -401,6 +409,7 @@ function resetearEstadoVentaVendedor() {
   if (lblChip) lblChip.textContent = 'UID: Sin leer';
 
   if (panelCobro) panelCobro.classList.add('hidden');
+  if (btnSoltar) btnSoltar.classList.add('hidden');
   fijarPiezas(1);
 }
 
@@ -502,9 +511,12 @@ async function procesarCobro() {
       `¡Muchas gracias por tu apoyo!`
     );
 
+    // Modal ágil con autocierre para evitar cuellos de botella en la fila
     await Swal.fire({
       icon: 'success',
       title: '¡Cobro Exitoso!',
+      timer: 2000,
+      timerProgressBar: true,
       html: `
         <div class="text-left bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-2">
           <p class="text-slate-400 text-xs">Monto Cobrado: <b class="text-white text-sm">$${totalCobro.toFixed(2)}</b></p>
@@ -609,14 +621,47 @@ function registrarHistorialLocal(producto, cant, monto) {
 // ==========================================
 // SECCIÓN: ADMIN (TAQUILLA / SALDO)
 // ==========================================
+function resetearEstadoTaquillaAdmin() {
+  if (unsubscribeChipAdmin) {
+    unsubscribeChipAdmin();
+    unsubscribeChipAdmin = null;
+  }
+
+  currentChipId = null;
+  currentChipData = null;
+
+  const urlSinParametros = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, document.title, urlSinParametros);
+
+  const lblChip = document.getElementById('admChipId');
+  const lblNombre = document.getElementById('admChipNombre');
+  const lblSub = document.getElementById('admSubEstado');
+  const lblSaldo = document.getElementById('admChipSaldo');
+  const btnSoltar = document.getElementById('btnDesconectarAdmin');
+  const boxNoReg = document.getElementById('admBoxNoRegistrado');
+  const boxReg = document.getElementById('admBoxRegistrado');
+
+  if (lblChip) lblChip.textContent = 'Sin pulsera';
+  if (lblNombre) lblNombre.textContent = 'Esperando pulsera...';
+  if (lblSub) lblSub.textContent = 'Acerca la pulsera al lector para operar';
+  if (lblSaldo) lblSaldo.textContent = '$0.00';
+  if (btnSoltar) btnSoltar.classList.add('hidden');
+
+  if (boxNoReg) boxNoReg.classList.add('hidden');
+  if (boxReg) boxReg.classList.add('hidden');
+}
+
 async function refrescarDatosChipAdmin(chipId) {
   const boxNoReg = document.getElementById('admBoxNoRegistrado');
   const boxReg = document.getElementById('admBoxRegistrado');
+  const btnSoltar = document.getElementById('btnDesconectarAdmin');
 
   if (unsubscribeChipAdmin) {
     unsubscribeChipAdmin();
     unsubscribeChipAdmin = null;
   }
+
+  if (btnSoltar) btnSoltar.classList.remove('hidden');
 
   unsubscribeChipAdmin = db.collection('chips').doc(chipId).onSnapshot(doc => {
     if (doc.exists && doc.data().nombre && doc.data().nombre.trim() !== '') {
@@ -701,13 +746,17 @@ async function recargarMontoRapido(monto) {
     actualizarTiraOperacionesAdmin();
     reproducirSonidoExito();
 
-    Swal.fire({
+    await Swal.fire({
       icon: 'success',
       title: '¡Recarga Exitosa!',
       text: `Saldo nuevo: $${saldoResultante.toFixed(2)}`,
-      timer: 1500,
+      timer: 1600,
+      timerProgressBar: true,
       showConfirmButton: false
     });
+
+    // Auto-reseteo para dejar la caja limpia al siguiente asistente
+    resetearEstadoTaquillaAdmin();
 
   } catch (err) {
     reproducirSonidoRechazo();
@@ -787,8 +836,16 @@ async function abrirModalRegistroNFC() {
         actualizarTiraOperacionesAdmin();
       }
 
-      await refrescarDatosChipAdmin(currentChipId);
-      Swal.fire('Guardado', 'Chip configurado correctamente.', 'success');
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Titular Registrado!',
+        text: `Se vinculó a ${formValues.nombre}`,
+        timer: 1600,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+
+      resetearEstadoTaquillaAdmin();
     } catch (e) {
       Swal.fire('Error', e.message, 'error');
     }
@@ -860,8 +917,16 @@ async function abrirModalAjusteSaldo() {
         document.getElementById('admTotalCajaEfectivo').textContent = `$${totalEfectivoCajaAdmin.toFixed(2)}`;
       }
 
-      await refrescarDatosChipAdmin(currentChipId);
-      Swal.fire('Completado', 'Saldo modificado con éxito.', 'success');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Completado',
+        text: 'Saldo modificado con éxito.',
+        timer: 1600,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+
+      resetearEstadoTaquillaAdmin();
     } catch (e) {
       Swal.fire('Error', e.message, 'error');
     }
@@ -1253,7 +1318,7 @@ async function abrirModalCrearUsuario() {
         <option value="admin">Administrador (Taquilla)</option>
         <option value="superadmin">Super Admin</option>
       </select>
-      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white">${opcionesArt}</select>
+      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl">${opcionesArt}</select>
     `,
     showCancelButton: true,
     confirmButtonText: 'Crear Usuario',

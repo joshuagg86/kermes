@@ -79,8 +79,8 @@
       <!-- TAB 1: COBRO -->
       <div id="tabContentVendCobro" class="space-y-4">
         
-        <!-- ESTADO NFC CON RADAR VISUAL -->
-        <div id="vendRadarBox" class="glass-card rounded-2xl p-5 border border-slate-800 transition-all duration-300">
+        <!-- ESTADO NFC CON RADAR VISUAL Y BOTÓN MANUAL DE DESCONEXIÓN -->
+        <div id="vendRadarBox" class="glass-card rounded-2xl p-5 border border-slate-800 transition-all duration-300 relative">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div id="vendRadarIcon" class="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-2xl radar-anim">
@@ -96,7 +96,13 @@
               <span id="vendSaldo" class="text-xl font-black text-emerald-400">$0.00</span>
             </div>
           </div>
-          <div id="vendChipId" class="text-[10px] font-mono text-slate-500 mt-2 truncate">UID: Sin leer</div>
+          
+          <div class="flex justify-between items-center mt-3 pt-2.5 border-t border-slate-800/80">
+            <div id="vendChipId" class="text-[10px] font-mono text-slate-500 truncate">UID: Sin leer</div>
+            <button id="btnDesconectarVendedor" onclick="resetearEstadoVentaVendedor()" class="hidden text-[10px] bg-red-950/60 hover:bg-red-900/80 border border-red-800/50 text-red-300 px-2.5 py-1 rounded-lg font-bold btn-action">
+              ✕ Soltar / Siguiente
+            </button>
+          </div>
         </div>
 
         <!-- TARJETA DE COBRO & ATAJOS -->
@@ -188,14 +194,19 @@
     <!-- 3. VISTA ADMIN (TAQUILLA / RECARGA) -->
     <section id="viewAdmin" class="hidden space-y-4">
       
-      <!-- ESTADO DE LA PULSERA -->
+      <!-- ESTADO DE LA PULSERA CON BOTÓN DE SOLTAR -->
       <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500 space-y-2">
         <div class="flex justify-between items-start">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TAQUILLA ACTIVA</span>
           </div>
-          <span id="admChipId" class="text-xs font-mono bg-amber-950/80 text-amber-300 px-2.5 py-0.5 rounded border border-amber-800/40">Sin pulsera</span>
+          <div class="flex items-center gap-2">
+            <span id="admChipId" class="text-xs font-mono bg-amber-950/80 text-amber-300 px-2.5 py-0.5 rounded border border-amber-800/40">Sin pulsera</span>
+            <button id="btnDesconectarAdmin" onclick="resetearEstadoTaquillaAdmin()" class="hidden text-[10px] bg-red-950/60 hover:bg-red-900 border border-red-800/50 text-red-300 px-2 py-0.5 rounded font-bold btn-action">
+              ✕ Soltar
+            </button>
+          </div>
         </div>
         <div class="flex justify-between items-end">
           <div>
@@ -300,8 +311,7 @@
     <!-- 4. VISTA SUPER ADMIN (DASHBOARD FINANCIERO COMPLETO) -->
     <section id="viewSuperAdmin" class="hidden space-y-6">
       
-     
-     <!-- Submenú responsivo móvil (Grid compacto sin scroll) -->
+      <!-- Submenú responsivo móvil (Grid compacto sin scroll) -->
       <div class="grid grid-cols-3 gap-1.5 md:hidden">
         <button onclick="switchTabSuperAdmin('dashboard')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-blue-600 text-white text-center truncate shadow-sm transition" id="tabBtnDashboard">📊 Panel</button>
         <button onclick="switchTabSuperAdmin('chips')" class="py-2.5 px-1 rounded-xl font-bold text-[11px] bg-slate-900/90 text-slate-400 border border-slate-800 text-center truncate transition" id="tabBtnChips">🎟️ Pulseras</button>
@@ -313,7 +323,6 @@
 
       <!-- TAB 1: DASHBOARD EN TIEMPO REAL -->
       <div id="tabContentDashboard" class="space-y-6">
-        <!-- 4 Tarjetas de Métricas Ejecutivas -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="glass-card p-5 rounded-2xl border-l-4 border-l-emerald-500">
             <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Recargas Brutas (Caja)</span>
@@ -342,7 +351,6 @@
 
         <!-- Gráficas y Feed en Vivo -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Gráfica de Ventas por Producto -->
           <div class="lg:col-span-2 glass-card p-6 rounded-2xl space-y-4">
             <div class="flex justify-between items-center">
               <h3 class="font-bold text-white text-sm">🔥 Top Artículos Más Vendidos</h3>
@@ -353,7 +361,6 @@
             </div>
           </div>
 
-          <!-- Feed de Transacciones en Directo -->
           <div class="glass-card p-6 rounded-2xl space-y-4 flex flex-col">
             <div class="flex justify-between items-center">
               <h3 class="font-bold text-white text-sm">⚡ Actividad Reciente</h3>
@@ -369,7 +376,7 @@
         </div>
       </div>
 
-      <!-- TAB 2: BASE DE DATOS DE PULSERAS NFC (MODO TARJETAS) -->
+      <!-- TAB 2: BASE DE DATOS DE PULSERAS NFC -->
       <div id="tabContentChips" class="hidden space-y-4">
         <div class="glass-card rounded-2xl p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
           <div>
@@ -379,13 +386,10 @@
           <input type="text" id="buscadorChips" oninput="filtrarTablaChips()" placeholder="🔍 Buscar por UID o Titular..." class="bg-slate-900/90 border border-slate-700 text-xs px-4 py-2.5 rounded-xl text-white w-full sm:w-72 focus:outline-none focus:border-blue-500 transition" />
         </div>
 
-        <!-- Grid de Tarjetas de Chips -->
-        <div id="gridChipsCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Render dinámico de tarjetas -->
-        </div>
+        <div id="gridChipsCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
-      <!-- TAB 3: CATÁLOGO DE ARTÍCULOS (CON EDICIÓN Y ACCIONES) -->
+      <!-- TAB 3: CATÁLOGO DE ARTÍCULOS -->
       <div id="tabContentArticulos" class="hidden glass-card rounded-2xl p-6 space-y-4">
         <div class="flex justify-between items-center pb-2 border-b border-slate-800">
           <div>
@@ -411,7 +415,7 @@
         </div>
       </div>
 
-      <!-- TAB 4: USUARIOS / CUENTAS (MODO TARJETAS DE PERSONAL) -->
+      <!-- TAB 4: USUARIOS / CUENTAS -->
       <div id="tabContentUsuarios" class="hidden space-y-4">
         <div class="glass-card rounded-2xl p-5 flex justify-between items-center">
           <div>
@@ -423,10 +427,7 @@
           </button>
         </div>
 
-        <!-- Grid de Tarjetas de Usuarios -->
-        <div id="gridUsuariosCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <!-- Render dinámico de tarjetas -->
-        </div>
+        <div id="gridUsuariosCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
       <!-- TAB 5: REPORTES FINANCIEROS Y AUDITORÍA -->
@@ -436,7 +437,6 @@
           <p class="text-xs text-slate-400">Descarga consolidada para balance general, arqueo y conciliación bancaria.</p>
         </div>
 
-        <!-- Matriz de Reportes de Caja -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
             <span class="text-xs font-bold text-white">Arqueo Completo</span>
@@ -463,7 +463,6 @@
           </div>
         </div>
 
-        <!-- ZONA DE PELIGRO: REINICIO DE PRUEBAS -->
         <div class="mt-8 pt-6 border-t border-red-900/40 bg-red-950/20 rounded-2xl p-5 border border-red-900/30 space-y-3">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
