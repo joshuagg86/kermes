@@ -34,10 +34,11 @@ let listaChipsCache = [];
 let totalEfectivoCajaAdmin = 0;
 let ultimasOperacionesAdmin = [];
 
-// Listeners en tiempo real para SuperAdmin
+// Listeners en tiempo real para SuperAdmin y Admin
 let unsubscribeTransacciones = null;
 let unsubscribeChips = null;
 let chartProductosRef = null;
+let unsubscribeChipAdmin = null;
 
 // ==========================================
 // MÓDULO BÍBLICO (ROTACIÓN CADA 15 MINUTOS)
@@ -354,7 +355,7 @@ async function abrirModalArticulosExtra() {
 
   const { value: artId } = await Swal.fire({
     title: 'Cobrar otro producto',
-    html: `<select id="swalArtExtra" class="w-full p-2.5 rounded-xl">${opciones}</select>`,
+    html: `<select id="swalArtExtra" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white">${opciones}</select>`,
     showCancelButton: true,
     confirmButtonText: 'Seleccionar',
     cancelButtonText: 'Cancelar',
@@ -366,8 +367,41 @@ async function abrirModalArticulosExtra() {
     articuloActivo = { id: artDoc.id, ...artDoc.data() };
     document.getElementById('artActivoNombre').textContent = articuloActivo.nombre + " (Extra)";
     document.getElementById('artActivoPrecio').textContent = `$${articuloActivo.precio.toFixed(2)}`;
+    actualizarBadgeStock(articuloActivo.stock);
     fijarPiezas(1);
   }
+}
+
+function resetearEstadoVentaVendedor() {
+  currentChipId = null;
+  currentChipData = null;
+
+  const urlSinParametros = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, document.title, urlSinParametros);
+
+  const radarIcon = document.getElementById('vendRadarIcon');
+  const statusBadge = document.getElementById('vendChipStatusBadge');
+  const panelCobro = document.getElementById('vendPanelCobro');
+
+  if (radarIcon) {
+    radarIcon.textContent = '📡';
+    radarIcon.className = 'w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-2xl radar-anim';
+  }
+  if (statusBadge) {
+    statusBadge.textContent = 'Listo para escanear';
+    statusBadge.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800/40';
+  }
+
+  const lblNombre = document.getElementById('vendNombre');
+  const lblSaldo = document.getElementById('vendSaldo');
+  const lblChip = document.getElementById('vendChipId');
+
+  if (lblNombre) lblNombre.textContent = 'Esperando pulsera...';
+  if (lblSaldo) lblSaldo.textContent = '$0.00';
+  if (lblChip) lblChip.textContent = 'UID: Sin leer';
+
+  if (panelCobro) panelCobro.classList.add('hidden');
+  fijarPiezas(1);
 }
 
 async function procesarCobro() {
@@ -456,11 +490,8 @@ async function procesarCobro() {
     });
 
     reproducirSonidoExito();
-    await refrescarDatosChipVendedor(currentChipId);
     actualizarBadgeStock(articuloActivo.stock);
     registrarHistorialLocal(articuloActivo.nombre, piezasACobrar, totalCobro);
-
-    fijarPiezas(1);
 
     const mensajeWA = encodeURIComponent(
       `✨ *Genesaret POS - Comprobante de Consumo* ✨\n` +
@@ -471,7 +502,7 @@ async function procesarCobro() {
       `¡Muchas gracias por tu apoyo!`
     );
 
-    Swal.fire({
+    await Swal.fire({
       icon: 'success',
       title: '¡Cobro Exitoso!',
       html: `
@@ -488,13 +519,14 @@ async function procesarCobro() {
       confirmButtonText: 'Listo'
     });
 
+    resetearEstadoVentaVendedor();
+
   } catch (err) {
     reproducirSonidoRechazo();
     Swal.fire('No se pudo cobrar', err.message, 'error');
   }
 }
 
-// Cargar transacciones reales del vendedor desde Firestore
 async function cargarHistorialVendedorDesdeFirestore() {
   if (!currentUserData || !currentUserData.uid) return;
 
@@ -577,8 +609,6 @@ function registrarHistorialLocal(producto, cant, monto) {
 // ==========================================
 // SECCIÓN: ADMIN (TAQUILLA / SALDO)
 // ==========================================
-let unsubscribeChipAdmin = null;
-
 async function refrescarDatosChipAdmin(chipId) {
   const boxNoReg = document.getElementById('admBoxNoRegistrado');
   const boxReg = document.getElementById('admBoxRegistrado');
@@ -704,8 +734,8 @@ async function abrirModalRegistroNFC() {
   const { value: formValues } = await Swal.fire({
     title: 'Registrar Titular y Saldo',
     html: `
-      <input id="swalTitular" class="w-full p-2.5 rounded-xl mb-2" placeholder="Nombre completo" value="${currentChipData?.nombre || ''}">
-      <input id="swalSaldoInicial" type="number" class="w-full p-2.5 rounded-xl" placeholder="Saldo inicial ($)" value="0">
+      <input id="swalTitular" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white" placeholder="Nombre completo" value="${currentChipData?.nombre || ''}">
+      <input id="swalSaldoInicial" type="number" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white" placeholder="Saldo inicial ($)" value="0">
     `,
     showCancelButton: true,
     confirmButtonText: 'Guardar',
@@ -771,11 +801,11 @@ async function abrirModalAjusteSaldo() {
   const { value: formValues } = await Swal.fire({
     title: 'Ajustar Saldo',
     html: `
-      <select id="swalTipoAjuste" class="w-full p-2.5 rounded-xl mb-2">
+      <select id="swalTipoAjuste" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white">
         <option value="recarga">➕ Agregar Saldo (Recarga)</option>
         <option value="restar">➖ Restar Saldo</option>
       </select>
-      <input id="swalMontoAjuste" type="number" step="any" class="w-full p-2.5 rounded-xl" placeholder="Monto ($)">
+      <input id="swalMontoAjuste" type="number" step="any" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white" placeholder="Monto ($)">
     `,
     showCancelButton: true,
     confirmButtonText: 'Aplicar',
@@ -1215,15 +1245,15 @@ async function abrirModalCrearUsuario() {
   const { value: formValues } = await Swal.fire({
     title: 'Registrar Usuario',
     html: `
-      <input id="swalUserNombre" class="w-full p-2.5 rounded-xl mb-2" placeholder="Nombre completo">
-      <input id="swalUserEmail" type="email" class="w-full p-2.5 rounded-xl mb-2" placeholder="Correo electrónico">
-      <input id="swalUserPass" type="password" class="w-full p-2.5 rounded-xl mb-2" placeholder="Contraseña (mínimo 6)">
-      <select id="swalUserRol" class="w-full p-2.5 rounded-xl mb-2">
+      <input id="swalUserNombre" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white" placeholder="Nombre completo">
+      <input id="swalUserEmail" type="email" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white" placeholder="Correo electrónico">
+      <input id="swalUserPass" type="password" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white" placeholder="Contraseña (mínimo 6)">
+      <select id="swalUserRol" class="w-full p-2.5 rounded-xl mb-2 bg-slate-900 border border-slate-700 text-white">
         <option value="vendedor">Vendedor</option>
         <option value="admin">Administrador (Taquilla)</option>
         <option value="superadmin">Super Admin</option>
       </select>
-      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl">${opcionesArt}</select>
+      <select id="swalUserArticulo" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white">${opcionesArt}</select>
     `,
     showCancelButton: true,
     confirmButtonText: 'Crear Usuario',
